@@ -1,4 +1,4 @@
-package karaoke;
+package main;
 
 public class main {
 	//アップロードテスト
