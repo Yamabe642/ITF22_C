@@ -1,6 +1,6 @@
 package main;
 
 public class main {
-	//アップロードテスト
+	//開始地点
 
 }
