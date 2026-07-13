@@ -1,6 +1,18 @@
 package main;
 
+
+import view.MainMenuView;
+
+
 public class main {
-	//開始地点
+
+
+    public static void main(String[] args){
+
+
+        new MainMenuView();
+
+
+    }
 
 }
