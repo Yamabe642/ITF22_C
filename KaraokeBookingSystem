@@ -18,7 +18,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -30,6 +29,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
+import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
@@ -42,8 +42,6 @@ import javax.swing.table.DefaultTableModel;
 
 /**
  * カラオケ予約システム — Java Swing GUI
- * ------------------------------------------------------
- * 画面遷移: ログイン -> ルーム一覧 -> 予約フォーム -> 予約完了 -> 予約確認（一覧・キャンセル）
  */
 public class KaraokeBookingSystem extends JFrame {
 
@@ -76,8 +74,9 @@ public class KaraokeBookingSystem extends JFrame {
     private JSpinner durationSpinner, guestsSpinner;
     private JLabel bookingRoomLabel, totalPriceLabel, bookingStatusLabel;
 
-    // 予約確認テーブル
+    // 予約確認・注文履歴テーブル
     private DefaultTableModel bookingsTableModel;
+    private DefaultTableModel ordersTableModel;
 
     // 注文画面用フィールド
     private String screenBeforeOrder = "DASHBOARD";
@@ -87,8 +86,8 @@ public class KaraokeBookingSystem extends JFrame {
     public KaraokeBookingSystem() {
         setTitle("カラオケ予約システム");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(750, 720);
-        setMinimumSize(new Dimension(680, 640));
+        setSize(800, 750);
+        setMinimumSize(new Dimension(720, 680));
         setLocationRelativeTo(null);
         getContentPane().setBackground(BG_WHITE);
 
@@ -119,10 +118,7 @@ public class KaraokeBookingSystem extends JFrame {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBackground(BG_WHITE);
-        card.setBorder(new CompoundBorder(
-                new LineBorder(BORDER_GRAY, 1, true),
-                new EmptyBorder(36, 36, 36, 36)
-        ));
+        card.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(36, 36, 36, 36)));
         card.setPreferredSize(new Dimension(360, 340));
 
         JLabel logo = new JLabel("♪ カラオケ予約");
@@ -162,15 +158,9 @@ public class KaraokeBookingSystem extends JFrame {
             }
             currentUser = u;
             loginErr.setText(" ");
-            refreshBookingsTable();
+            refreshTables();
             goTo("DASHBOARD");
         });
-
-        JLabel hint = new JLabel("※デモ用: 任意のユーザー名/パスワードでログインできます");
-        hint.setFont(new Font("SansSerif", Font.ITALIC, 11));
-        hint.setForeground(TEXT_MUTED);
-        hint.setAlignmentX(Component.LEFT_ALIGNMENT);
-        hint.setBorder(new EmptyBorder(10, 0, 0, 0));
 
         card.add(logo);
         card.add(sub);
@@ -181,7 +171,6 @@ public class KaraokeBookingSystem extends JFrame {
         card.add(passField);
         card.add(loginErr);
         card.add(loginBtn);
-        card.add(hint);
 
         wrap.add(card);
         return wrap;
@@ -210,9 +199,9 @@ public class KaraokeBookingSystem extends JFrame {
         titleBlock.add(title);
         titleBlock.add(sub);
 
-        JButton myBookingsBtn = ghostButton("予約の確認・変更");
+        JButton myBookingsBtn = ghostButton("予約・注文履歴の確認");
         myBookingsBtn.addActionListener(e -> {
-            refreshBookingsTable();
+            refreshTables();
             goTo("MYBOOKINGS");
         });
 
@@ -243,7 +232,6 @@ public class KaraokeBookingSystem extends JFrame {
         JScrollPane scroll = new JScrollPane(roomList);
         scroll.setBorder(null);
         scroll.getViewport().setBackground(BG_WHITE);
-        scroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
 
         outer.add(headerRow, BorderLayout.NORTH);
         outer.add(scroll, BorderLayout.CENTER);
@@ -253,10 +241,7 @@ public class KaraokeBookingSystem extends JFrame {
     private JPanel buildRoomCard(Room room) {
         JPanel card = new JPanel(new BorderLayout());
         card.setBackground(PANEL_GRAY);
-        card.setBorder(new CompoundBorder(
-                new LineBorder(BORDER_GRAY, 1, true),
-                new EmptyBorder(16, 18, 16, 18)
-        ));
+        card.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(16, 18, 16, 18)));
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
         card.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -268,7 +253,7 @@ public class KaraokeBookingSystem extends JFrame {
         nameLbl.setFont(FONT_H2);
         nameLbl.setForeground(TEXT_DARK);
 
-        JLabel capLbl = new JLabel("定員: " + room.capacity + "  •  1時間あたり " + formatYen(room.pricePerHour));
+        JLabel capLbl = new JLabel("定員: " + room.capacity + "  •  1人1時間あたり " + formatYen(room.pricePerPersonPerHour));
         capLbl.setFont(FONT_BODY);
         capLbl.setForeground(TEXT_MUTED);
 
@@ -279,7 +264,7 @@ public class KaraokeBookingSystem extends JFrame {
         bookBtn.setPreferredSize(new Dimension(100, 38));
         bookBtn.addActionListener(e -> {
             selectedRoom = room;
-            bookingRoomLabel.setText(room.name + "  (" + formatYen(room.pricePerHour) + "/時)");
+            bookingRoomLabel.setText(room.name + "  (1人1時間あたり " + formatYen(room.pricePerPersonPerHour) + ")");
             updateTotal();
             goTo("BOOKING");
         });
@@ -341,8 +326,6 @@ public class KaraokeBookingSystem extends JFrame {
 
         JPanel dateTimeRow = new JPanel(new GridLayout(1, 2, 14, 0));
         dateTimeRow.setBackground(BG_WHITE);
-        dateTimeRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-        dateTimeRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 66));
         dateTimeRow.add(fieldBlock("ご利用日", dateField));
         dateTimeRow.add(fieldBlock("ご利用開始時間", timeField));
         form.add(dateTimeRow);
@@ -352,13 +335,13 @@ public class KaraokeBookingSystem extends JFrame {
         styleSpinner(durationSpinner);
         durationSpinner.addChangeListener(e -> updateTotal());
 
+        // 人数選択で料金が連動するため、ChangeListenerを追加
         guestsSpinner = new JSpinner(new SpinnerNumberModel(2, 1, 15, 1));
         styleSpinner(guestsSpinner);
+        guestsSpinner.addChangeListener(e -> updateTotal());
 
         JPanel durGuestRow = new JPanel(new GridLayout(1, 2, 14, 0));
         durGuestRow.setBackground(BG_WHITE);
-        durGuestRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-        durGuestRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 66));
         durGuestRow.add(fieldBlock("ご利用時間 (時間)", durationSpinner));
         durGuestRow.add(fieldBlock("ご利用人数", guestsSpinner));
         form.add(durGuestRow);
@@ -367,9 +350,7 @@ public class KaraokeBookingSystem extends JFrame {
         JPanel summary = new JPanel(new BorderLayout());
         summary.setBackground(PANEL_GRAY);
         summary.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(14, 16, 14, 16)));
-        summary.setAlignmentX(Component.LEFT_ALIGNMENT);
-        summary.setMaximumSize(new Dimension(Integer.MAX_VALUE, 56));
-        JLabel summaryLbl = new JLabel("概算合計金額");
+        JLabel summaryLbl = new JLabel("概算合計金額 (人数 × 時間分)");
         summaryLbl.setFont(FONT_BODY);
         summaryLbl.setForeground(TEXT_MUTED);
         totalPriceLabel = new JLabel("0円");
@@ -382,7 +363,6 @@ public class KaraokeBookingSystem extends JFrame {
 
         bookingStatusLabel = new JLabel(" ");
         bookingStatusLabel.setFont(FONT_LABEL);
-        bookingStatusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         form.add(bookingStatusLabel);
         form.add(Box.createVerticalStrut(6));
 
@@ -403,7 +383,9 @@ public class KaraokeBookingSystem extends JFrame {
     private void updateTotal() {
         if (selectedRoom == null || totalPriceLabel == null) return;
         int hours = (Integer) durationSpinner.getValue();
-        int total = selectedRoom.pricePerHour * hours;
+        int guests = (Integer) guestsSpinner.getValue();
+        // 料金計算を「人数 × 1人あたり料金 × 時間」に変更
+        int total = selectedRoom.pricePerPersonPerHour * guests * hours;
         totalPriceLabel.setText(formatYen(total));
     }
 
@@ -418,9 +400,7 @@ public class KaraokeBookingSystem extends JFrame {
         String date = textOrEmpty(dateField, "YYYY-MM-DD");
         String time = textOrEmpty(timeField, "HH:MM");
 
-        // 名前の条件をなくす（常にtrue）
-        boolean nameOk = true; 
-        // 日本の電話番号（携帯・固定、ハイフン有無両対応）の正規表現
+        boolean nameOk = true; // 名前の条件はなし
         boolean phoneOk = phone.matches("^(0\\d{1,4}-\\d{1,4}-\\d{4}|0\\d{9,10})$");
         boolean dateOk = date.matches("^\\d{4}-\\d{2}-\\d{2}$");
         boolean timeOk = time.matches("^\\d{2}:\\d{2}$");
@@ -438,7 +418,7 @@ public class KaraokeBookingSystem extends JFrame {
 
         int hours = (Integer) durationSpinner.getValue();
         int guests = (Integer) guestsSpinner.getValue();
-        int total = selectedRoom.pricePerHour * hours;
+        int total = selectedRoom.pricePerPersonPerHour * guests * hours;
 
         Booking booking = new Booking(
                 db.nextBookingId(), selectedRoom, name, phone, date, time, hours, guests, total
@@ -483,10 +463,10 @@ public class KaraokeBookingSystem extends JFrame {
         confirmSummaryLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         confirmSummaryLabel.setBorder(new EmptyBorder(0, 0, 24, 0));
 
-        JButton viewBookingsBtn = accentButton("予約一覧を確認する");
+        JButton viewBookingsBtn = accentButton("予約一覧・注文履歴を確認する");
         viewBookingsBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
         viewBookingsBtn.addActionListener(e -> {
-            refreshBookingsTable();
+            refreshTables();
             goTo("MYBOOKINGS");
         });
 
@@ -520,13 +500,13 @@ public class KaraokeBookingSystem extends JFrame {
                 + "予約番号: #" + lastBooking.id + " <br>予約名義: <b>" + escape(lastBooking.customerName) + "</b> 様<br>"
                 + "部屋タイプ: " + lastBooking.room.name + "<br>日時: " + lastBooking.date + " " + lastBooking.time + "〜<br>"
                 + "利用時間: " + lastBooking.durationHours + " 時間, 人数: " + lastBooking.guests + " 名<br>"
-                + "合計金額: <b>" + formatYen(lastBooking.totalPrice) + "</b>"
+                + "合計室料: <b>" + formatYen(lastBooking.totalPrice) + "</b>"
                 + "</body></html>";
         confirmSummaryLabel.setText(html);
     }
 
     // =========================================================
-    // SCREEN 5 — MY BOOKINGS
+    // SCREEN 5 — MY BOOKINGS & ORDER HISTORY
     // =========================================================
     private JPanel buildMyBookingsScreen() {
         JPanel outer = new JPanel(new BorderLayout());
@@ -541,7 +521,7 @@ public class KaraokeBookingSystem extends JFrame {
         backBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
         backBtn.addActionListener(e -> goTo("DASHBOARD"));
 
-        JLabel title = new JLabel("現在の予約一覧");
+        JLabel title = new JLabel("マイページ（履歴確認）");
         title.setFont(FONT_H1);
         title.setForeground(TEXT_DARK);
         title.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -550,11 +530,75 @@ public class KaraokeBookingSystem extends JFrame {
         header.add(backBtn);
         header.add(title);
 
-        String[] columns = {"予約ID", "ルーム名", "予約日", "時間", "時間(h)", "人数", "合計金額"};
+        // 1. 予約履歴用コンポーネント
+        JLabel bookingLabel = new JLabel("■ 予約一覧");
+        bookingLabel.setFont(FONT_H2);
+        bookingLabel.setBorder(new EmptyBorder(0, 0, 6, 0));
+
+        String[] columns = {"予約ID", "ルーム名", "予約日", "時間", "時間(h)", "人数", "合計室料"};
         bookingsTableModel = new DefaultTableModel(columns, 0) {
+            @Override
             public boolean isCellEditable(int row, int col) { return false; }
         };
-        JTable table = new JTable(bookingsTableModel);
+        JTable bookingTable = new JTable(bookingsTableModel);
+        styleTable(bookingTable);
+        JScrollPane bookingScroll = new JScrollPane(bookingTable);
+        bookingScroll.setBorder(new LineBorder(BORDER_GRAY, 1, true));
+
+        JButton cancelBtn = ghostButton("選択した予約をキャンセル");
+        cancelBtn.setForeground(ACCENT);
+        cancelBtn.addActionListener(e -> {
+            int row = bookingTable.getSelectedRow();
+            if (row >= 0) {
+                int result = JOptionPane.showConfirmDialog(this, "選択した予約をキャンセルしますか？", "予約のキャンセル", JOptionPane.YES_NO_OPTION);
+                if (result == JOptionPane.YES_OPTION) {
+                    int id = (Integer) bookingsTableModel.getValueAt(row, 0);
+                    db.cancelBooking(id);
+                    refreshTables();
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "キャンセルする予約を一覧から選択してください。");
+            }
+        });
+
+        JPanel bookingPanel = new JPanel(new BorderLayout());
+        bookingPanel.setBackground(BG_WHITE);
+        bookingPanel.add(bookingLabel, BorderLayout.NORTH);
+        bookingPanel.add(bookingScroll, BorderLayout.CENTER);
+        bookingPanel.add(cancelBtn, BorderLayout.SOUTH);
+
+        // 2. 注文履歴用コンポーネント (新機能)
+        JLabel orderLabel = new JLabel("■ フード・ドリンク注文履歴");
+        orderLabel.setFont(FONT_H2);
+        orderLabel.setBorder(new EmptyBorder(12, 0, 6, 0));
+
+        String[] orderColumns = {"注文ID", "商品名", "単価", "数量", "小計"};
+        ordersTableModel = new DefaultTableModel(orderColumns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
+        JTable orderHistoryTable = new JTable(ordersTableModel);
+        styleTable(orderHistoryTable);
+        JScrollPane orderScroll = new JScrollPane(orderHistoryTable);
+        orderScroll.setBorder(new LineBorder(BORDER_GRAY, 1, true));
+
+        JPanel orderPanel = new JPanel(new BorderLayout());
+        orderPanel.setBackground(BG_WHITE);
+        orderPanel.add(orderLabel, BorderLayout.NORTH);
+        orderPanel.add(orderScroll, BorderLayout.CENTER);
+
+        // 画面を上下2分割にするスプリットパネル
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, bookingPanel, orderPanel);
+        splitPane.setDividerLocation(200);
+        splitPane.setBorder(null);
+        splitPane.setBackground(BG_WHITE);
+
+        outer.add(header, BorderLayout.NORTH);
+        outer.add(splitPane, BorderLayout.CENTER);
+        return outer;
+    }
+
+    private void styleTable(JTable table) {
         table.setFont(FONT_BODY);
         table.setRowHeight(28);
         table.setForeground(TEXT_DARK);
@@ -563,36 +607,26 @@ public class KaraokeBookingSystem extends JFrame {
         table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 12));
         table.getTableHeader().setBackground(PANEL_GRAY);
         table.getTableHeader().setForeground(TEXT_MUTED);
+    }
 
-        JScrollPane tableScroll = new JScrollPane(table);
-        tableScroll.setBorder(new LineBorder(BORDER_GRAY, 1, true));
+    private void refreshTables() {
+        if (bookingsTableModel == null || ordersTableModel == null) return;
+        
+        // 予約履歴テーブルの更新
+        bookingsTableModel.setRowCount(0);
+        for (Booking b : db.getBookings()) {
+            bookingsTableModel.addRow(new Object[]{
+                    b.id, b.room.name, b.date, b.time, b.durationHours, b.guests, formatYen(b.totalPrice)
+            });
+        }
 
-        JButton cancelBtn = ghostButton("選択した予約をキャンセル");
-        cancelBtn.setBorder(new CompoundBorder(new LineBorder(ACCENT, 1, true), new EmptyBorder(9, 16, 9, 16)));
-        cancelBtn.setForeground(ACCENT);
-        cancelBtn.addActionListener(e -> {
-            int row = table.getSelectedRow();
-            if (row >= 0) {
-                int result = JOptionPane.showConfirmDialog(this, "選択した予約をキャンセルしますか？", "予約のキャンセル", JOptionPane.YES_NO_OPTION);
-                if (result == JOptionPane.YES_OPTION) {
-                    int id = (Integer) bookingsTableModel.getValueAt(row, 0);
-                    db.cancelBooking(id);
-                    refreshBookingsTable();
-                }
-            } else {
-                JOptionPane.showMessageDialog(this, "キャンセルする予約を一覧から選択してください。");
-            }
-        });
-
-        JPanel footer = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        footer.setBackground(BG_WHITE);
-        footer.setBorder(new EmptyBorder(14, 0, 0, 0));
-        footer.add(cancelBtn);
-
-        outer.add(header, BorderLayout.NORTH);
-        outer.add(tableScroll, BorderLayout.CENTER);
-        outer.add(footer, BorderLayout.SOUTH);
-        return outer;
+        // 注文履歴テーブルの更新
+        ordersTableModel.setRowCount(0);
+        for (OrderHistory oh : db.getOrderHistories()) {
+            ordersTableModel.addRow(new Object[]{
+                    oh.orderId, oh.itemName, formatYen(oh.price), oh.quantity, formatYen(oh.price * oh.quantity)
+            });
+        }
     }
 
     // =========================================================
@@ -644,7 +678,7 @@ public class KaraokeBookingSystem extends JFrame {
         JPanel summary = new JPanel(new BorderLayout());
         summary.setBackground(PANEL_GRAY);
         summary.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(14, 16, 14, 16)));
-        summary.setMaximumSize(new Dimension(Integer.MAX_VALUE, 56));
+
         JLabel summaryLbl = new JLabel("注文合計金額");
         summaryLbl.setFont(FONT_BODY);
         summaryLbl.setForeground(TEXT_MUTED);
@@ -655,7 +689,6 @@ public class KaraokeBookingSystem extends JFrame {
         summary.add(orderTotalLabel, BorderLayout.EAST);
 
         JButton confirmOrderBtn = accentButton("注文を確定する");
-        confirmOrderBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
         confirmOrderBtn.addActionListener(e -> handleOrderSubmit());
 
         JPanel bottom = new JPanel();
@@ -719,11 +752,17 @@ public class KaraokeBookingSystem extends JFrame {
     private void handleOrderSubmit() {
         List<String> lines = new ArrayList<>();
         int total = 0;
+        int nextOrderId = db.nextOrderId();
+
         for (Map.Entry<MenuItem, JSpinner> entry : orderSpinners.entrySet()) {
             int qty = (Integer) entry.getValue().getValue();
             if (qty > 0) {
-                lines.add(entry.getKey().name + " × " + qty + " = " + formatYen(entry.getKey().price * qty));
-                total += entry.getKey().price * qty;
+                MenuItem item = entry.getKey();
+                lines.add(item.name + " × " + qty + " = " + formatYen(item.price * qty));
+                total += item.price * qty;
+                
+                // データベースへ注文履歴を追加
+                db.addOrderHistory(new OrderHistory(nextOrderId, item.name, item.price, qty));
             }
         }
         if (lines.isEmpty()) {
@@ -739,16 +778,6 @@ public class KaraokeBookingSystem extends JFrame {
         for (JSpinner s : orderSpinners.values()) s.setValue(0);
         updateOrderTotal();
         goTo(screenBeforeOrder);
-    }
-
-    private void refreshBookingsTable() {
-        if (bookingsTableModel == null) return;
-        bookingsTableModel.setRowCount(0);
-        for (Booking b : db.getBookings()) {
-            bookingsTableModel.addRow(new Object[]{
-                    b.id, b.room.name, b.date, b.time, b.durationHours, b.guests, formatYen(b.totalPrice)
-            });
-        }
     }
 
     // =========================================================
@@ -788,6 +817,7 @@ public class KaraokeBookingSystem extends JFrame {
         field.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(8, 12, 8, 12)));
 
         field.addFocusListener(new FocusAdapter() {
+            @Override
             public void focusGained(FocusEvent e) {
                 if (field.getText().equals(placeholder)) {
                     field.setText("");
@@ -795,6 +825,7 @@ public class KaraokeBookingSystem extends JFrame {
                 }
                 field.setBorder(new CompoundBorder(new LineBorder(ACCENT, 1, true), new EmptyBorder(8, 12, 8, 12)));
             }
+            @Override
             public void focusLost(FocusEvent e) {
                 if (field.getText().isEmpty()) {
                     field.setText(placeholder);
@@ -829,7 +860,9 @@ public class KaraokeBookingSystem extends JFrame {
         btn.setBorder(new EmptyBorder(11, 20, 11, 20));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.addMouseListener(new MouseAdapter() {
+            @Override
             public void mouseEntered(MouseEvent e) { btn.setBackground(ACCENT_HOVER); }
+            @Override
             public void mouseExited(MouseEvent e)  { btn.setBackground(ACCENT); }
         });
         return btn;
@@ -844,7 +877,9 @@ public class KaraokeBookingSystem extends JFrame {
         btn.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(9, 16, 9, 16)));
         btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
         btn.addMouseListener(new MouseAdapter() {
+            @Override
             public void mouseEntered(MouseEvent e) { btn.setBackground(PANEL_GRAY); }
+            @Override
             public void mouseExited(MouseEvent e)  { btn.setBackground(BG_WHITE); }
         });
         return btn;
@@ -860,7 +895,6 @@ public class KaraokeBookingSystem extends JFrame {
         field.setBorder(new CompoundBorder(new LineBorder(c, 1, true), new EmptyBorder(8, 12, 8, 12)));
     }
 
-    // 日本円表記 (¥表記または円表記)
     private static String formatYen(int amount) {
         NumberFormat nf = NumberFormat.getNumberInstance(Locale.JAPAN);
         return nf.format(amount) + "円";
@@ -887,13 +921,13 @@ public class KaraokeBookingSystem extends JFrame {
         final int id;
         final String name;
         final String capacity;
-        final int pricePerHour;
+        final int pricePerPersonPerHour; // 1時間1人あたり料金に変更
 
-        Room(int id, String name, String capacity, int pricePerHour) {
+        Room(int id, String name, String capacity, int pricePerPersonPerHour) {
             this.id = id;
             this.name = name;
             this.capacity = capacity;
-            this.pricePerHour = pricePerHour;
+            this.pricePerPersonPerHour = pricePerPersonPerHour;
         }
     }
 
@@ -906,6 +940,21 @@ public class KaraokeBookingSystem extends JFrame {
             this.id = id;
             this.name = name;
             this.price = price;
+        }
+    }
+
+    // 新規: 注文履歴保存用モデル
+    static class OrderHistory {
+        final int orderId;
+        final String itemName;
+        final int price;
+        final int quantity;
+
+        OrderHistory(int orderId, String itemName, int price, int quantity) {
+            this.orderId = orderId;
+            this.itemName = itemName;
+            this.price = price;
+            this.quantity = quantity;
         }
     }
 
@@ -939,12 +988,15 @@ public class KaraokeBookingSystem extends JFrame {
         private final List<Room> rooms = new ArrayList<>();
         private final List<Booking> bookings = new ArrayList<>();
         private final List<MenuItem> menuItems = new ArrayList<>();
+        private final List<OrderHistory> orderHistories = new ArrayList<>(); // 注文履歴用
         private int bookingCounter = 1000;
+        private int orderCounter = 5000;
 
         Database() {
-            rooms.add(new Room(1, "スモールルーム", "2〜4名", 1500));
-            rooms.add(new Room(2, "ミディアムルーム", "5〜8名", 2500));
-            rooms.add(new Room(3, "VIPパーティールーム", "9〜15名", 4500));
+            // 日本のカラオケに合わせ、1人1時間あたりの料金目安に調整
+            rooms.add(new Room(1, "スモールルーム", "2〜4名", 400));
+            rooms.add(new Room(2, "ミディアムルーム", "5〜8名", 500));
+            rooms.add(new Room(3, "VIPパーティールーム", "9〜15名", 700));
 
             menuItems.add(new MenuItem(1, "生ビール", 600));
             menuItems.add(new MenuItem(2, "ハイボール", 550));
@@ -956,8 +1008,8 @@ public class KaraokeBookingSystem extends JFrame {
         }
 
         List<Room> getRooms() { return rooms; }
-
         List<MenuItem> getMenuItems() { return menuItems; }
+        List<OrderHistory> getOrderHistories() { return orderHistories; } // 取得用
 
         List<Booking> getBookings() {
             List<Booking> active = new ArrayList<>();
@@ -968,8 +1020,10 @@ public class KaraokeBookingSystem extends JFrame {
         }
 
         void addBooking(Booking b) { bookings.add(b); }
-
         int nextBookingId() { return ++bookingCounter; }
+        
+        void addOrderHistory(OrderHistory oh) { orderHistories.add(oh); } // 追加用
+        int nextOrderId() { return ++orderCounter; }
 
         void cancelBooking(int id) {
             for (Booking b : bookings) {
