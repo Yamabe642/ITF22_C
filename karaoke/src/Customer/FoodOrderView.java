@@ -34,7 +34,7 @@ public class FoodOrderView extends JFrame {
         setTitle("飲食注文システム");
 
         // ウィンドウサイズ
-        setSize(800, 600);
+        setSize(1920, 1080);
 
         // 画面中央
         setLocationRelativeTo(null);
