@@ -14,7 +14,7 @@ import javax.swing.SwingConstants;
 
 public class FoodOrderView extends JFrame {
 
-	
+	//test
 	
     // メニュー選択
     private JComboBox<String> menuCombo;
