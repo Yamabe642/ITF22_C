@@ -2,7 +2,7 @@ package Customer;
 
 public class FoodOrder {
 	
-	//test
+	
 
     // 注文ID
     private int orderId;
