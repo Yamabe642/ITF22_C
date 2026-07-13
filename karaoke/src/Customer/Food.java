@@ -1,6 +1,8 @@
 package Customer;
 
 public class Food {
+	
+	//test
 
     // 商品ID
     private int foodId;

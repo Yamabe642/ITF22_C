@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class FoodOrderService {
+	
+	//test
 
     // 注文リスト
     private List<FoodOrder> orderList = new ArrayList<>();
