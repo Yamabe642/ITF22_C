@@ -17,6 +17,9 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -1833,88 +1836,392 @@ public class ttt extends JFrame {
     }
 
     static class Database {
+
+        private Connection con;
+
         private final List<Room> rooms = new ArrayList<>();
         private final List<Booking> bookings = new ArrayList<>();
         private final List<MenuItem> menuItems = new ArrayList<>();
         private final List<Order> orders = new ArrayList<>();
+
         private int bookingCounter = 1000;
         private int orderCounter = 5000;
 
-        Database() {
-            // ★画像パスを明示的に指定（名前からの自動導出はしない）
-            // ★変更: 室料はスモール・ミディアムを無料に、VIPパーティールームのみ2000円/時に変更
-            //          （人数×時間の料金制を主体にするため）
-            rooms.add(new Room(1, "スモールルーム",      "2〜4名",  0,    "images/ルーム画像/スモールルーム.png",   2, 4));
-            rooms.add(new Room(2, "ミディアムルーム",    "5〜8名",  0,    "images/ルーム画像/ミディアムルーム.png", 5, 8));
-            rooms.add(new Room(3, "VIPパーティールーム", "9〜15名", 2000, "images/ルーム画像/パーティールーム.png", 9, 15));
 
-            menuItems.add(new MenuItem(1,  "生ビール",       400, "images/メニュー画像/生ビール.png"));
-            menuItems.add(new MenuItem(2,  "ハイボール",     400, "images/メニュー画像/ハイボール.png"));
-            menuItems.add(new MenuItem(3,  "フライドポテト", 450, "images/メニュー画像/フライドポテト.png"));
-            menuItems.add(new MenuItem(4,  "唐揚げ",         580, "images/メニュー画像/唐揚げ.png"));
-            menuItems.add(new MenuItem(5,  "ピザ",           980, "images/メニュー画像/ピザ.png"));
-            menuItems.add(new MenuItem(6,  "チャーハン",     750, "images/メニュー画像/チャーハン.png"));
-            menuItems.add(new MenuItem(7,  "オムライス",     850, "images/メニュー画像/オムライス.png"));
-            menuItems.add(new MenuItem(8,  "カレーライス",   780, "images/メニュー画像/カレーライス.png"));
-            menuItems.add(new MenuItem(9,  "グリンーサラダ", 500, "images/メニュー画像/グリンーサラダ.png"));
-            menuItems.add(new MenuItem(10, "たこ焼き",       550, "images/メニュー画像/たこ焼き.png"));
-            menuItems.add(new MenuItem(11, "焼きそば",       780, "images/メニュー画像/焼きそば.png"));
-            menuItems.add(new MenuItem(12, "ナゲット",       480, "images/メニュー画像/ナゲット.png"));
-            menuItems.add(new MenuItem(13, "チョコパフェ",   650, "images/メニュー画像/チョコパフェ.png"));
-            menuItems.add(new MenuItem(14, "イチゴパフェ",   650, "images/メニュー画像/イチゴパフェ.png"));
-            menuItems.add(new MenuItem(15, "バニラアイス",   350, "images/メニュー画像/バニラアイス.png"));
-            menuItems.add(new MenuItem(16, "チョコアイス",   350, "images/メニュー画像/チョコアイス.png"));
-            menuItems.add(new MenuItem(17, "いちごアイス",   350, "images/メニュー画像/イチゴアイス.png"));
+        // コンストラクタ
+        Database() {
+
+            try {
+
+                Class.forName("com.mysql.cj.jdbc.Driver");
+
+                con = DriverManager.getConnection(
+                        "jdbc:mysql://localhost:3306/karaoke",
+                        "root",
+                        ""
+                );
+
+                System.out.println("MySQL接続成功");
+
+
+            } catch(Exception e) {
+
+                e.printStackTrace();
+
+            }
+
+
+            // ルーム情報
+            rooms.add(new Room(
+                    1,
+                    "スモールルーム",
+                    "2〜4名",
+                    0,
+                    "images/ルーム画像/スモールルーム.png",
+                    2,
+                    4
+            ));
+
+
+            rooms.add(new Room(
+                    2,
+                    "ミディアムルーム",
+                    "5〜8名",
+                    0,
+                    "images/ルーム画像/ミディアムルーム.png",
+                    5,
+                    8
+            ));
+
+
+            rooms.add(new Room(
+                    3,
+                    "VIPパーティールーム",
+                    "9〜15名",
+                    2000,
+                    "images/ルーム画像/パーティールーム.png",
+                    9,
+                    15
+            ));
+
+
+
+            // メニュー情報
+            menuItems.add(new MenuItem(1,"生ビール",400,
+                    "images/メニュー画像/生ビール.png"));
+
+            menuItems.add(new MenuItem(2,"ハイボール",400,
+                    "images/メニュー画像/ハイボール.png"));
+
+            menuItems.add(new MenuItem(3,"フライドポテト",450,
+                    "images/メニュー画像/フライドポテト.png"));
+
+            menuItems.add(new MenuItem(4,"唐揚げ",580,
+                    "images/メニュー画像/唐揚げ.png"));
+
+            menuItems.add(new MenuItem(5,"ピザ",980,
+                    "images/メニュー画像/ピザ.png"));
+
+            menuItems.add(new MenuItem(6,"チャーハン",750,
+                    "images/メニュー画像/チャーハン.png"));
+
+            menuItems.add(new MenuItem(7,"オムライス",850,
+                    "images/メニュー画像/オムライス.png"));
+
+            menuItems.add(new MenuItem(8,"カレーライス",780,
+                    "images/メニュー画像/カレーライス.png"));
+
+            menuItems.add(new MenuItem(9,"グリンーサラダ",500,
+                    "images/メニュー画像/グリンーサラダ.png"));
+
+            menuItems.add(new MenuItem(10,"たこ焼き",550,
+                    "images/メニュー画像/たこ焼き.png"));
+
+            menuItems.add(new MenuItem(11,"焼きそば",780,
+                    "images/メニュー画像/焼きそば.png"));
+
+            menuItems.add(new MenuItem(12,"ナゲット",480,
+                    "images/メニュー画像/ナゲット.png"));
+
+            menuItems.add(new MenuItem(13,"チョコパフェ",650,
+                    "images/メニュー画像/チョコパフェ.png"));
+
+            menuItems.add(new MenuItem(14,"イチゴパフェ",650,
+                    "images/メニュー画像/イチゴパフェ.png"));
+
+            menuItems.add(new MenuItem(15,"バニラアイス",350,
+                    "images/メニュー画像/バニラアイス.png"));
+
+            menuItems.add(new MenuItem(16,"チョコアイス",350,
+                    "images/メニュー画像/チョコアイス.png"));
+
+            menuItems.add(new MenuItem(17,"イチゴアイス",350,
+                    "images/メニュー画像/イチゴアイス.png"));
+
         }
 
-        List<Room> getRooms() { return rooms; }
 
-        List<MenuItem> getMenuItems() { return menuItems; }
+
+        // 予約番号発行
+        int nextBookingId() {
+
+            return ++bookingCounter;
+
+        }
+
+
+
+        // 注文番号発行
+        int nextOrderId() {
+
+            return ++orderCounter;
+
+        }
+
+
+
+        List<Room> getRooms() {
+
+            return rooms;
+
+        }
+
+
+
+        List<MenuItem> getMenuItems() {
+
+            return menuItems;
+
+        }
+
+
 
         List<Booking> getBookings() {
+
             List<Booking> active = new ArrayList<>();
-            for (Booking b : bookings) {
-                if (!b.status.equals("CANCELLED")) active.add(b);
-            }
-            return active;
-        }
 
-        Booking findBookingById(int id) {
-            for (Booking b : bookings) {
-                if (b.id == id && !b.status.equals("CANCELLED")) return b;
-            }
-            return null;
-        }
+            for(Booking b : bookings){
 
-        void addBooking(Booking b) { bookings.add(b); }
+                if(!b.status.equals("CANCELLED")){
 
-        int nextBookingId() { return ++bookingCounter; }
+                    active.add(b);
 
-        void cancelBooking(int id) {
-            for (Booking b : bookings) {
-                if (b.id == id) { b.status = "CANCELLED"; break; }
-            }
-        }
-
-        void updateBooking(int id, Room room, String customerName, String phone, String date, String time,
-                            int durationHours, int guests,
-                            boolean freeTime, int roomCost, int guestFee, int totalPrice) {
-            for (int i = 0; i < bookings.size(); i++) {
-                Booking existing = bookings.get(i);
-                if (existing.id == id) {
-                    Booking updated = new Booking(id, room, customerName, phone, date, time,
-                            durationHours, guests, freeTime, roomCost, guestFee, totalPrice);
-                    updated.status = existing.status;
-                    bookings.set(i, updated);
-                    break;
                 }
+
             }
+
+            return active;
+
         }
 
-        int nextOrderId() { return ++orderCounter; }
 
-        void addOrder(Order o) { orders.add(o); }
 
-        List<Order> getOrders() { return orders; }
+
+        Booking findBookingById(int id){
+
+            for(Booking b : bookings){
+
+                if(b.id == id &&
+                   !b.status.equals("CANCELLED")){
+
+                    return b;
+
+                }
+
+            }
+
+            return null;
+
+        }
+
+
+
+
+        // 予約登録(MySQL)
+        void addBooking(Booking b){
+
+            try{
+
+
+                // ① 予約情報追加
+                String sql =
+                    "INSERT INTO reservations " +
+                    "(customer_name, phone, room_name, reservation_date, reservation_time, usage_time, number_of_people, total_price) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+
+                PreparedStatement ps =
+                        con.prepareStatement(sql);
+
+
+                ps.setString(1, b.customerName);
+                ps.setString(2, b.phone);
+                ps.setString(3, b.room.name);
+                ps.setString(4, b.date);
+                ps.setString(5, b.time);
+                ps.setInt(6, b.durationHours);
+                ps.setInt(7, b.guests);
+                ps.setInt(8, b.totalPrice);
+
+
+                ps.executeUpdate();
+
+
+
+                // ② 在庫(stock)を1減らす
+                String stockSql =
+                    "UPDATE room SET stock = stock - 1 WHERE room_name = ? AND stock > 0";
+
+
+                PreparedStatement stockPs =
+                        con.prepareStatement(stockSql);
+
+
+                stockPs.setString(1, b.room.name);
+
+
+                int result = stockPs.executeUpdate();
+
+
+                if(result > 0){
+
+                    System.out.println("在庫を1減らしました");
+
+                }else{
+
+                    System.out.println("在庫がありません");
+
+                }
+
+
+                // Java側にも保存
+                bookings.add(b);
+
+
+                System.out.println("予約追加成功");
+
+
+            }catch(Exception e){
+
+                e.printStackTrace();
+
+            }
+
+        }
+
+
+
+
+
+        // キャンセル
+        void cancelBooking(int id){
+
+            try{
+
+                String sql =
+                    "DELETE FROM reservations WHERE reservation_id=?";
+
+
+                PreparedStatement ps =
+                        con.prepareStatement(sql);
+
+
+                ps.setInt(1,id);
+
+
+                ps.executeUpdate();
+
+
+                for(Booking b : bookings){
+
+                    if(b.id == id){
+
+                        b.status="CANCELLED";
+
+                    }
+
+                }
+
+
+            }catch(Exception e){
+
+                e.printStackTrace();
+
+            }
+
+        }
+
+
+
+
+        void updateBooking(
+                int id,
+                Room room,
+                String customerName,
+                String phone,
+                String date,
+                String time,
+                int durationHours,
+                int guests,
+                boolean freeTime,
+                int roomCost,
+                int guestFee,
+                int totalPrice
+        ){
+
+            for(int i=0;i<bookings.size();i++){
+
+                Booking old = bookings.get(i);
+
+
+                if(old.id == id){
+
+                    Booking update =
+                        new Booking(
+                            id,
+                            room,
+                            customerName,
+                            phone,
+                            date,
+                            time,
+                            durationHours,
+                            guests,
+                            freeTime,
+                            roomCost,
+                            guestFee,
+                            totalPrice
+                        );
+
+
+                    update.status = old.status;
+
+
+                    bookings.set(i,update);
+
+
+                    break;
+
+                }
+
+            }
+
+        }
+
+
+
+        void addOrder(Order o){
+
+            orders.add(o);
+
+        }
+
+
+
+        List<Order> getOrders(){
+
+            return orders;
+
+        }
+
     }
 }
