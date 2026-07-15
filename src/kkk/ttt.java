@@ -1334,9 +1334,27 @@ public class ttt extends JFrame {
             return;
         }
 
-        String placedAt = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        String placedAt = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+
         Order order = new Order(db.nextOrderId(), orderLines, total, placedAt);
         db.addOrder(order);
+
+
+        // ★ここに追加（注文確定後に在庫を減らす）
+        for (OrderLine line : orderLines) {
+
+            System.out.println(
+                "ID:" + line.item.id +
+                " 商品:" + line.item.name +
+                " 数量:" + line.qty
+            );
+
+            db.reduceStock(
+                line.item.id,
+                line.qty
+            );
+        }
 
         StringBuilder sb = new StringBuilder();
         sb.append("ご注文ありがとうございます！（注文番号 #").append(order.id).append("）\n\n");
@@ -2205,6 +2223,77 @@ public class ttt extends JFrame {
 
             }
 
+        }
+        void updateMenuStock(List<OrderLine> orderLines) {
+
+            try {
+
+                for(OrderLine line : orderLines) {
+
+
+                    String sql =
+                        "UPDATE food_drink " +
+                        "SET stock = stock - ? " +
+                        "WHERE menu_id = ? AND stock >= ?";
+
+
+                    PreparedStatement ps =
+                            con.prepareStatement(sql);
+
+
+                    ps.setInt(1, line.qty);
+                    ps.setInt(2, line.item.id);
+                    
+
+                    int result = ps.executeUpdate();
+
+
+                    if(result > 0){
+
+                        System.out.println(
+                            line.item.name + " 在庫減少成功"
+                        );
+
+                    }else{
+
+                        System.out.println(
+                            line.item.name + " 在庫不足"
+                        );
+
+                    }
+
+                }
+
+
+            }catch(Exception e){
+
+                e.printStackTrace();
+
+            }
+
+        }
+        
+        void reduceStock(int foodDrinkId, int quantity) {
+
+            try {
+
+                String sql =
+                    "UPDATE food_drink " +
+                    "SET stock = stock - ? " +
+                    "WHERE food_drink_id = ?";
+
+                PreparedStatement ps = con.prepareStatement(sql);
+
+                ps.setInt(1, quantity);
+                ps.setInt(2, foodDrinkId);
+
+                int result = ps.executeUpdate();
+
+                System.out.println("在庫更新件数：" + result);
+
+            } catch(Exception e) {
+                e.printStackTrace();
+            }
         }
 
 
