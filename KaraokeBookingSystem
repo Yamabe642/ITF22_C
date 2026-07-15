@@ -1,0 +1,1034 @@
+import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridBagLayout;
+import java.awt.GridLayout;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
+import javax.swing.border.LineBorder;
+import javax.swing.table.DefaultTableModel;
+
+/**
+ * カラオケ予約システム — Java Swing GUI
+ */
+public class KaraokeBookingSystem extends JFrame {
+
+    // ================= THEME =================
+    static final Color BG_WHITE     = Color.WHITE;
+    static final Color PANEL_GRAY   = new Color(0xF7, 0xF7, 0xF9);
+    static final Color BORDER_GRAY  = new Color(0xE2, 0xE2, 0xE8);
+    static final Color TEXT_DARK    = new Color(0x22, 0x22, 0x28);
+    static final Color TEXT_MUTED   = new Color(0x8A, 0x8A, 0x96);
+    static final Color ACCENT       = new Color(0xE4, 0x57, 0x2E);
+    static final Color ACCENT_HOVER = new Color(0xF0, 0x6A, 0x3D);
+    static final Color SUCCESS      = new Color(0x1F, 0x8A, 0x5A);
+    static final Font  FONT_H1      = new Font("SansSerif", Font.BOLD, 22);
+    static final Font  FONT_H2      = new Font("SansSerif", Font.BOLD, 16);
+    static final Font  FONT_BODY    = new Font("SansSerif", Font.PLAIN, 13);
+    static final Font  FONT_LABEL   = new Font("SansSerif", Font.PLAIN, 12);
+
+    // ================= NAVIGATION =================
+    private final CardLayout cardLayout = new CardLayout();
+    private final JPanel mainContainer = new JPanel(cardLayout);
+
+    // ================= APP STATE =================
+    private final Database db = new Database();
+    private Room selectedRoom;
+    private Booking lastBooking;
+    private String currentUser = "ゲスト";
+
+    // 予約フォーム用フィールド
+    private JTextField nameField, phoneField, dateField, timeField;
+    private JSpinner durationSpinner, guestsSpinner;
+    private JLabel bookingRoomLabel, totalPriceLabel, bookingStatusLabel;
+
+    // 予約確認・注文履歴テーブル
+    private DefaultTableModel bookingsTableModel;
+    private DefaultTableModel ordersTableModel;
+
+    // 注文画面用フィールド
+    private String screenBeforeOrder = "DASHBOARD";
+    private final Map<MenuItem, JSpinner> orderSpinners = new LinkedHashMap<>();
+    private JLabel orderTotalLabel;
+
+    public KaraokeBookingSystem() {
+        setTitle("カラオケ予約システム");
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setSize(800, 750);
+        setMinimumSize(new Dimension(720, 680));
+        setLocationRelativeTo(null);
+        getContentPane().setBackground(BG_WHITE);
+
+        mainContainer.setBackground(BG_WHITE);
+        mainContainer.add(buildLoginScreen(), "LOGIN");
+        mainContainer.add(buildDashboardScreen(), "DASHBOARD");
+        mainContainer.add(buildBookingScreen(), "BOOKING");
+        mainContainer.add(buildConfirmationScreen(), "CONFIRMATION");
+        mainContainer.add(buildMyBookingsScreen(), "MYBOOKINGS");
+        mainContainer.add(buildOrderScreen(), "ORDER");
+
+        add(mainContainer);
+        cardLayout.show(mainContainer, "LOGIN");
+        setVisible(true);
+    }
+
+    private void goTo(String screen) {
+        cardLayout.show(mainContainer, screen);
+    }
+
+    // =========================================================
+    // SCREEN 1 — LOGIN
+    // =========================================================
+    private JPanel buildLoginScreen() {
+        JPanel wrap = new JPanel(new GridBagLayout());
+        wrap.setBackground(BG_WHITE);
+
+        JPanel card = new JPanel();
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBackground(BG_WHITE);
+        card.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(36, 36, 36, 36)));
+        card.setPreferredSize(new Dimension(360, 340));
+
+        JLabel logo = new JLabel("♪ カラオケ予約");
+        logo.setFont(new Font("SansSerif", Font.BOLD, 22));
+        logo.setForeground(ACCENT);
+        logo.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel sub = new JLabel("ログインしてルームを予約");
+        sub.setFont(FONT_BODY);
+        sub.setForeground(TEXT_MUTED);
+        sub.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sub.setBorder(new EmptyBorder(4, 0, 20, 0));
+
+        JTextField userField = styledTextField("ユーザー名");
+        JPasswordField passField = new JPasswordField();
+        stylePasswordField(passField);
+
+        userField.setAlignmentX(Component.LEFT_ALIGNMENT);
+        passField.setAlignmentX(Component.LEFT_ALIGNMENT);
+        userField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        passField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+
+        JLabel loginErr = new JLabel(" ");
+        loginErr.setFont(FONT_LABEL);
+        loginErr.setForeground(ACCENT);
+        loginErr.setAlignmentX(Component.LEFT_ALIGNMENT);
+        loginErr.setBorder(new EmptyBorder(6, 0, 10, 0));
+
+        JButton loginBtn = accentButton("ログイン");
+        loginBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        loginBtn.addActionListener(e -> {
+            String u = userField.getText().trim();
+            String p = new String(passField.getPassword()).trim();
+            if (u.isEmpty() || u.equals("ユーザー名") || p.isEmpty()) {
+                loginErr.setText("ユーザー名とパスワードを入力してください。");
+                return;
+            }
+            currentUser = u;
+            loginErr.setText(" ");
+            refreshTables();
+            goTo("DASHBOARD");
+        });
+
+        card.add(logo);
+        card.add(sub);
+        card.add(labelFor("ユーザー名"));
+        card.add(userField);
+        card.add(Box.createVerticalStrut(12));
+        card.add(labelFor("パスワード"));
+        card.add(passField);
+        card.add(loginErr);
+        card.add(loginBtn);
+
+        wrap.add(card);
+        return wrap;
+    }
+
+    // =========================================================
+    // SCREEN 2 — DASHBOARD (room list)
+    // =========================================================
+    private JPanel buildDashboardScreen() {
+        JPanel outer = new JPanel(new BorderLayout());
+        outer.setBackground(BG_WHITE);
+        outer.setBorder(new EmptyBorder(28, 32, 28, 32));
+
+        JPanel headerRow = new JPanel(new BorderLayout());
+        headerRow.setBackground(BG_WHITE);
+
+        JPanel titleBlock = new JPanel();
+        titleBlock.setLayout(new BoxLayout(titleBlock, BoxLayout.Y_AXIS));
+        titleBlock.setBackground(BG_WHITE);
+        JLabel title = new JLabel("空きルーム一覧");
+        title.setFont(FONT_H1);
+        title.setForeground(TEXT_DARK);
+        JLabel sub = new JLabel("ご希望のルームを選択してください");
+        sub.setFont(FONT_BODY);
+        sub.setForeground(TEXT_MUTED);
+        titleBlock.add(title);
+        titleBlock.add(sub);
+
+        JButton myBookingsBtn = ghostButton("予約・注文履歴の確認");
+        myBookingsBtn.addActionListener(e -> {
+            refreshTables();
+            goTo("MYBOOKINGS");
+        });
+
+        JButton orderBtn = ghostButton("🍽 フード・ドリンク注文");
+        orderBtn.addActionListener(e -> {
+            screenBeforeOrder = "DASHBOARD";
+            goTo("ORDER");
+        });
+
+        JPanel headerButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        headerButtons.setBackground(BG_WHITE);
+        headerButtons.add(orderBtn);
+        headerButtons.add(myBookingsBtn);
+
+        headerRow.add(titleBlock, BorderLayout.WEST);
+        headerRow.add(headerButtons, BorderLayout.EAST);
+
+        JPanel roomList = new JPanel();
+        roomList.setLayout(new BoxLayout(roomList, BoxLayout.Y_AXIS));
+        roomList.setBackground(BG_WHITE);
+        roomList.setBorder(new EmptyBorder(20, 0, 0, 0));
+
+        for (Room room : db.getRooms()) {
+            roomList.add(buildRoomCard(room));
+            roomList.add(Box.createVerticalStrut(14));
+        }
+
+        JScrollPane scroll = new JScrollPane(roomList);
+        scroll.setBorder(null);
+        scroll.getViewport().setBackground(BG_WHITE);
+
+        outer.add(headerRow, BorderLayout.NORTH);
+        outer.add(scroll, BorderLayout.CENTER);
+        return outer;
+    }
+
+    private JPanel buildRoomCard(Room room) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setBackground(PANEL_GRAY);
+        card.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(16, 18, 16, 18)));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
+        card.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel info = new JPanel();
+        info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
+        info.setBackground(PANEL_GRAY);
+
+        JLabel nameLbl = new JLabel(room.name);
+        nameLbl.setFont(FONT_H2);
+        nameLbl.setForeground(TEXT_DARK);
+
+        JLabel capLbl = new JLabel("定員: " + room.capacity + "  •  1人1時間あたり " + formatYen(room.pricePerPersonPerHour));
+        capLbl.setFont(FONT_BODY);
+        capLbl.setForeground(TEXT_MUTED);
+
+        info.add(nameLbl);
+        info.add(capLbl);
+
+        JButton bookBtn = accentButton("選択する");
+        bookBtn.setPreferredSize(new Dimension(100, 38));
+        bookBtn.addActionListener(e -> {
+            selectedRoom = room;
+            bookingRoomLabel.setText(room.name + "  (1人1時間あたり " + formatYen(room.pricePerPersonPerHour) + ")");
+            updateTotal();
+            goTo("BOOKING");
+        });
+
+        JPanel btnWrap = new JPanel(new GridBagLayout());
+        btnWrap.setBackground(PANEL_GRAY);
+        btnWrap.add(bookBtn);
+
+        card.add(info, BorderLayout.WEST);
+        card.add(btnWrap, BorderLayout.EAST);
+        return card;
+    }
+
+    // =========================================================
+    // SCREEN 3 — BOOKING FORM
+    // =========================================================
+    private JPanel buildBookingScreen() {
+        JPanel outer = new JPanel(new BorderLayout());
+        outer.setBackground(BG_WHITE);
+        outer.setBorder(new EmptyBorder(28, 32, 28, 32));
+
+        JPanel header = new JPanel();
+        header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
+        header.setBackground(BG_WHITE);
+
+        JButton backBtn = ghostButton("← ルーム一覧に戻る");
+        backBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        backBtn.addActionListener(e -> goTo("DASHBOARD"));
+
+        JLabel title = new JLabel("予約詳細の入力");
+        title.setFont(FONT_H1);
+        title.setForeground(TEXT_DARK);
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        title.setBorder(new EmptyBorder(10, 0, 0, 0));
+
+        bookingRoomLabel = new JLabel("ルームが選択されていません");
+        bookingRoomLabel.setFont(FONT_BODY);
+        bookingRoomLabel.setForeground(ACCENT);
+        bookingRoomLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        bookingRoomLabel.setBorder(new EmptyBorder(4, 0, 16, 0));
+
+        header.add(backBtn);
+        header.add(title);
+        header.add(bookingRoomLabel);
+
+        JPanel form = new JPanel();
+        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+        form.setBackground(BG_WHITE);
+
+        nameField = styledTextField("例: 山田 太郎");
+        phoneField = styledTextField("例: 09012345678");
+        dateField = styledTextField("YYYY-MM-DD");
+        timeField = styledTextField("HH:MM");
+
+        form.add(fieldBlock("お名前（フルネーム）", nameField));
+        form.add(Box.createVerticalStrut(14));
+        form.add(fieldBlock("電話番号（ハイフンなし可）", phoneField));
+        form.add(Box.createVerticalStrut(14));
+
+        JPanel dateTimeRow = new JPanel(new GridLayout(1, 2, 14, 0));
+        dateTimeRow.setBackground(BG_WHITE);
+        dateTimeRow.add(fieldBlock("ご利用日", dateField));
+        dateTimeRow.add(fieldBlock("ご利用開始時間", timeField));
+        form.add(dateTimeRow);
+        form.add(Box.createVerticalStrut(14));
+
+        durationSpinner = new JSpinner(new SpinnerNumberModel(2, 1, 8, 1));
+        styleSpinner(durationSpinner);
+        durationSpinner.addChangeListener(e -> updateTotal());
+
+        // 人数選択で料金が連動するため、ChangeListenerを追加
+        guestsSpinner = new JSpinner(new SpinnerNumberModel(2, 1, 15, 1));
+        styleSpinner(guestsSpinner);
+        guestsSpinner.addChangeListener(e -> updateTotal());
+
+        JPanel durGuestRow = new JPanel(new GridLayout(1, 2, 14, 0));
+        durGuestRow.setBackground(BG_WHITE);
+        durGuestRow.add(fieldBlock("ご利用時間 (時間)", durationSpinner));
+        durGuestRow.add(fieldBlock("ご利用人数", guestsSpinner));
+        form.add(durGuestRow);
+        form.add(Box.createVerticalStrut(18));
+
+        JPanel summary = new JPanel(new BorderLayout());
+        summary.setBackground(PANEL_GRAY);
+        summary.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(14, 16, 14, 16)));
+        JLabel summaryLbl = new JLabel("概算合計金額 (人数 × 時間分)");
+        summaryLbl.setFont(FONT_BODY);
+        summaryLbl.setForeground(TEXT_MUTED);
+        totalPriceLabel = new JLabel("0円");
+        totalPriceLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        totalPriceLabel.setForeground(ACCENT);
+        summary.add(summaryLbl, BorderLayout.WEST);
+        summary.add(totalPriceLabel, BorderLayout.EAST);
+        form.add(summary);
+        form.add(Box.createVerticalStrut(14));
+
+        bookingStatusLabel = new JLabel(" ");
+        bookingStatusLabel.setFont(FONT_LABEL);
+        form.add(bookingStatusLabel);
+        form.add(Box.createVerticalStrut(6));
+
+        JButton confirmBtn = accentButton("予約を確定する");
+        confirmBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        confirmBtn.addActionListener(e -> handleBookingSubmit());
+        form.add(confirmBtn);
+
+        JScrollPane scroll = new JScrollPane(form);
+        scroll.setBorder(null);
+        scroll.getViewport().setBackground(BG_WHITE);
+
+        outer.add(header, BorderLayout.NORTH);
+        outer.add(scroll, BorderLayout.CENTER);
+        return outer;
+    }
+
+    private void updateTotal() {
+        if (selectedRoom == null || totalPriceLabel == null) return;
+        int hours = (Integer) durationSpinner.getValue();
+        int guests = (Integer) guestsSpinner.getValue();
+        // 料金計算を「人数 × 1人あたり料金 × 時間」に変更
+        int total = selectedRoom.pricePerPersonPerHour * guests * hours;
+        totalPriceLabel.setText(formatYen(total));
+    }
+
+    private void handleBookingSubmit() {
+        if (selectedRoom == null) {
+            bookingStatusLabel.setForeground(ACCENT);
+            bookingStatusLabel.setText("最初にルームを選択してください。");
+            return;
+        }
+        String name = textOrEmpty(nameField, "例: 山田 太郎");
+        String phone = textOrEmpty(phoneField, "例: 09012345678");
+        String date = textOrEmpty(dateField, "YYYY-MM-DD");
+        String time = textOrEmpty(timeField, "HH:MM");
+
+        boolean nameOk = true; // 名前の条件はなし
+        boolean phoneOk = phone.matches("^(0\\d{1,4}-\\d{1,4}-\\d{4}|0\\d{9,10})$");
+        boolean dateOk = date.matches("^\\d{4}-\\d{2}-\\d{2}$");
+        boolean timeOk = time.matches("^\\d{2}:\\d{2}$");
+
+        markValid(nameField, "例: 山田 太郎", nameOk);
+        markValid(phoneField, "例: 09012345678", phoneOk);
+        markValid(dateField, "YYYY-MM-DD", dateOk);
+        markValid(timeField, "HH:MM", timeOk);
+
+        if (!(nameOk && phoneOk && dateOk && timeOk)) {
+            bookingStatusLabel.setForeground(ACCENT);
+            bookingStatusLabel.setText("入力内容に不備があります。赤枠のフィールドを確認してください。");
+            return;
+        }
+
+        int hours = (Integer) durationSpinner.getValue();
+        int guests = (Integer) guestsSpinner.getValue();
+        int total = selectedRoom.pricePerPersonPerHour * guests * hours;
+
+        Booking booking = new Booking(
+                db.nextBookingId(), selectedRoom, name, phone, date, time, hours, guests, total
+        );
+        db.addBooking(booking);
+        lastBooking = booking;
+
+        bookingStatusLabel.setText(" ");
+        populateConfirmationScreen();
+        goTo("CONFIRMATION");
+    }
+
+    // =========================================================
+    // SCREEN 4 — CONFIRMATION
+    // =========================================================
+    private JLabel confirmSummaryLabel;
+
+    private JPanel buildConfirmationScreen() {
+        JPanel wrap = new JPanel(new GridBagLayout());
+        wrap.setBackground(BG_WHITE);
+
+        JPanel card = new JPanel();
+        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setBackground(BG_WHITE);
+        card.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(36, 36, 36, 36)));
+        card.setPreferredSize(new Dimension(440, 400));
+
+        JLabel check = new JLabel("✓");
+        check.setFont(new Font("SansSerif", Font.BOLD, 36));
+        check.setForeground(SUCCESS);
+        check.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel title = new JLabel("予約が完了しました");
+        title.setFont(FONT_H1);
+        title.setForeground(TEXT_DARK);
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        title.setBorder(new EmptyBorder(6, 0, 12, 0));
+
+        confirmSummaryLabel = new JLabel("<html></html>");
+        confirmSummaryLabel.setFont(FONT_BODY);
+        confirmSummaryLabel.setForeground(TEXT_MUTED);
+        confirmSummaryLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        confirmSummaryLabel.setBorder(new EmptyBorder(0, 0, 24, 0));
+
+        JButton viewBookingsBtn = accentButton("予約一覧・注文履歴を確認する");
+        viewBookingsBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        viewBookingsBtn.addActionListener(e -> {
+            refreshTables();
+            goTo("MYBOOKINGS");
+        });
+
+        JButton orderFoodBtn = accentButton("料理・ドリンクを注文する");
+        orderFoodBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        orderFoodBtn.addActionListener(e -> {
+            screenBeforeOrder = "CONFIRMATION";
+            goTo("ORDER");
+        });
+
+        JButton doneBtn = ghostButton("続けて別のルームを予約する");
+        doneBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        doneBtn.addActionListener(e -> goTo("DASHBOARD"));
+
+        card.add(check);
+        card.add(title);
+        card.add(confirmSummaryLabel);
+        card.add(viewBookingsBtn);
+        card.add(Box.createVerticalStrut(8));
+        card.add(orderFoodBtn);
+        card.add(Box.createVerticalStrut(8));
+        card.add(doneBtn);
+
+        wrap.add(card);
+        return wrap;
+    }
+
+    private void populateConfirmationScreen() {
+        if (lastBooking == null) return;
+        String html = "<html><body style='width:320px'>"
+                + "予約番号: #" + lastBooking.id + " <br>予約名義: <b>" + escape(lastBooking.customerName) + "</b> 様<br>"
+                + "部屋タイプ: " + lastBooking.room.name + "<br>日時: " + lastBooking.date + " " + lastBooking.time + "〜<br>"
+                + "利用時間: " + lastBooking.durationHours + " 時間, 人数: " + lastBooking.guests + " 名<br>"
+                + "合計室料: <b>" + formatYen(lastBooking.totalPrice) + "</b>"
+                + "</body></html>";
+        confirmSummaryLabel.setText(html);
+    }
+
+    // =========================================================
+    // SCREEN 5 — MY BOOKINGS & ORDER HISTORY
+    // =========================================================
+    private JPanel buildMyBookingsScreen() {
+        JPanel outer = new JPanel(new BorderLayout());
+        outer.setBackground(BG_WHITE);
+        outer.setBorder(new EmptyBorder(28, 32, 28, 32));
+
+        JPanel header = new JPanel();
+        header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
+        header.setBackground(BG_WHITE);
+
+        JButton backBtn = ghostButton("← ルーム一覧に戻る");
+        backBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        backBtn.addActionListener(e -> goTo("DASHBOARD"));
+
+        JLabel title = new JLabel("マイページ（履歴確認）");
+        title.setFont(FONT_H1);
+        title.setForeground(TEXT_DARK);
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        title.setBorder(new EmptyBorder(10, 0, 16, 0));
+
+        header.add(backBtn);
+        header.add(title);
+
+        // 1. 予約履歴用コンポーネント
+        JLabel bookingLabel = new JLabel("■ 予約一覧");
+        bookingLabel.setFont(FONT_H2);
+        bookingLabel.setBorder(new EmptyBorder(0, 0, 6, 0));
+
+        String[] columns = {"予約ID", "ルーム名", "予約日", "時間", "時間(h)", "人数", "合計室料"};
+        bookingsTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
+        JTable bookingTable = new JTable(bookingsTableModel);
+        styleTable(bookingTable);
+        JScrollPane bookingScroll = new JScrollPane(bookingTable);
+        bookingScroll.setBorder(new LineBorder(BORDER_GRAY, 1, true));
+
+        JButton cancelBtn = ghostButton("選択した予約をキャンセル");
+        cancelBtn.setForeground(ACCENT);
+        cancelBtn.addActionListener(e -> {
+            int row = bookingTable.getSelectedRow();
+            if (row >= 0) {
+                int result = JOptionPane.showConfirmDialog(this, "選択した予約をキャンセルしますか？", "予約のキャンセル", JOptionPane.YES_NO_OPTION);
+                if (result == JOptionPane.YES_OPTION) {
+                    int id = (Integer) bookingsTableModel.getValueAt(row, 0);
+                    db.cancelBooking(id);
+                    refreshTables();
+                }
+            } else {
+                JOptionPane.showMessageDialog(this, "キャンセルする予約を一覧から選択してください。");
+            }
+        });
+
+        JPanel bookingPanel = new JPanel(new BorderLayout());
+        bookingPanel.setBackground(BG_WHITE);
+        bookingPanel.add(bookingLabel, BorderLayout.NORTH);
+        bookingPanel.add(bookingScroll, BorderLayout.CENTER);
+        bookingPanel.add(cancelBtn, BorderLayout.SOUTH);
+
+        // 2. 注文履歴用コンポーネント (新機能)
+        JLabel orderLabel = new JLabel("■ フード・ドリンク注文履歴");
+        orderLabel.setFont(FONT_H2);
+        orderLabel.setBorder(new EmptyBorder(12, 0, 6, 0));
+
+        String[] orderColumns = {"注文ID", "商品名", "単価", "数量", "小計"};
+        ordersTableModel = new DefaultTableModel(orderColumns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int col) { return false; }
+        };
+        JTable orderHistoryTable = new JTable(ordersTableModel);
+        styleTable(orderHistoryTable);
+        JScrollPane orderScroll = new JScrollPane(orderHistoryTable);
+        orderScroll.setBorder(new LineBorder(BORDER_GRAY, 1, true));
+
+        JPanel orderPanel = new JPanel(new BorderLayout());
+        orderPanel.setBackground(BG_WHITE);
+        orderPanel.add(orderLabel, BorderLayout.NORTH);
+        orderPanel.add(orderScroll, BorderLayout.CENTER);
+
+        // 画面を上下2分割にするスプリットパネル
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, bookingPanel, orderPanel);
+        splitPane.setDividerLocation(200);
+        splitPane.setBorder(null);
+        splitPane.setBackground(BG_WHITE);
+
+        outer.add(header, BorderLayout.NORTH);
+        outer.add(splitPane, BorderLayout.CENTER);
+        return outer;
+    }
+
+    private void styleTable(JTable table) {
+        table.setFont(FONT_BODY);
+        table.setRowHeight(28);
+        table.setForeground(TEXT_DARK);
+        table.setGridColor(BORDER_GRAY);
+        table.setSelectionBackground(new Color(0xFC, 0xE4, 0xDB));
+        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 12));
+        table.getTableHeader().setBackground(PANEL_GRAY);
+        table.getTableHeader().setForeground(TEXT_MUTED);
+    }
+
+    private void refreshTables() {
+        if (bookingsTableModel == null || ordersTableModel == null) return;
+        
+        // 予約履歴テーブルの更新
+        bookingsTableModel.setRowCount(0);
+        for (Booking b : db.getBookings()) {
+            bookingsTableModel.addRow(new Object[]{
+                    b.id, b.room.name, b.date, b.time, b.durationHours, b.guests, formatYen(b.totalPrice)
+            });
+        }
+
+        // 注文履歴テーブルの更新
+        ordersTableModel.setRowCount(0);
+        for (OrderHistory oh : db.getOrderHistories()) {
+            ordersTableModel.addRow(new Object[]{
+                    oh.orderId, oh.itemName, formatYen(oh.price), oh.quantity, formatYen(oh.price * oh.quantity)
+            });
+        }
+    }
+
+    // =========================================================
+    // SCREEN 6 — ORDER (フード・ドリンク注文)
+    // =========================================================
+    private JPanel buildOrderScreen() {
+        JPanel outer = new JPanel(new BorderLayout());
+        outer.setBackground(BG_WHITE);
+        outer.setBorder(new EmptyBorder(28, 32, 28, 32));
+
+        JPanel header = new JPanel();
+        header.setLayout(new BoxLayout(header, BoxLayout.Y_AXIS));
+        header.setBackground(BG_WHITE);
+
+        JButton backBtn = ghostButton("← 戻る");
+        backBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        backBtn.addActionListener(e -> goTo(screenBeforeOrder));
+
+        JLabel title = new JLabel("フード・ドリンク注文");
+        title.setFont(FONT_H1);
+        title.setForeground(TEXT_DARK);
+        title.setAlignmentX(Component.LEFT_ALIGNMENT);
+        title.setBorder(new EmptyBorder(10, 0, 0, 0));
+
+        JLabel sub = new JLabel("ご希望の商品と数量を選択してください");
+        sub.setFont(FONT_BODY);
+        sub.setForeground(TEXT_MUTED);
+        sub.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sub.setBorder(new EmptyBorder(4, 0, 16, 0));
+
+        header.add(backBtn);
+        header.add(title);
+        header.add(sub);
+
+        JPanel itemsList = new JPanel();
+        itemsList.setLayout(new BoxLayout(itemsList, BoxLayout.Y_AXIS));
+        itemsList.setBackground(BG_WHITE);
+
+        orderSpinners.clear();
+        for (MenuItem item : db.getMenuItems()) {
+            itemsList.add(buildMenuItemRow(item));
+            itemsList.add(Box.createVerticalStrut(10));
+        }
+
+        JScrollPane scroll = new JScrollPane(itemsList);
+        scroll.setBorder(null);
+        scroll.getViewport().setBackground(BG_WHITE);
+
+        JPanel summary = new JPanel(new BorderLayout());
+        summary.setBackground(PANEL_GRAY);
+        summary.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(14, 16, 14, 16)));
+
+        JLabel summaryLbl = new JLabel("注文合計金額");
+        summaryLbl.setFont(FONT_BODY);
+        summaryLbl.setForeground(TEXT_MUTED);
+        orderTotalLabel = new JLabel("0円");
+        orderTotalLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        orderTotalLabel.setForeground(ACCENT);
+        summary.add(summaryLbl, BorderLayout.WEST);
+        summary.add(orderTotalLabel, BorderLayout.EAST);
+
+        JButton confirmOrderBtn = accentButton("注文を確定する");
+        confirmOrderBtn.addActionListener(e -> handleOrderSubmit());
+
+        JPanel bottom = new JPanel();
+        bottom.setLayout(new BoxLayout(bottom, BoxLayout.Y_AXIS));
+        bottom.setBackground(BG_WHITE);
+        bottom.setBorder(new EmptyBorder(14, 0, 0, 0));
+        bottom.add(summary);
+        bottom.add(Box.createVerticalStrut(12));
+        bottom.add(confirmOrderBtn);
+
+        outer.add(header, BorderLayout.NORTH);
+        outer.add(scroll, BorderLayout.CENTER);
+        outer.add(bottom, BorderLayout.SOUTH);
+        return outer;
+    }
+
+    private JPanel buildMenuItemRow(MenuItem item) {
+        JPanel row = new JPanel(new BorderLayout());
+        row.setBackground(PANEL_GRAY);
+        row.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(12, 18, 12, 18)));
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
+        row.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel info = new JPanel();
+        info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
+        info.setBackground(PANEL_GRAY);
+        JLabel nameLbl = new JLabel(item.name);
+        nameLbl.setFont(FONT_H2);
+        nameLbl.setForeground(TEXT_DARK);
+        JLabel priceLbl = new JLabel(formatYen(item.price));
+        priceLbl.setFont(FONT_BODY);
+        priceLbl.setForeground(TEXT_MUTED);
+        info.add(nameLbl);
+        info.add(priceLbl);
+
+        JSpinner qtySpinner = new JSpinner(new SpinnerNumberModel(0, 0, 20, 1));
+        styleSpinner(qtySpinner);
+        qtySpinner.setPreferredSize(new Dimension(70, 32));
+        qtySpinner.addChangeListener(e -> updateOrderTotal());
+        orderSpinners.put(item, qtySpinner);
+
+        JPanel qtyWrap = new JPanel(new GridBagLayout());
+        qtyWrap.setBackground(PANEL_GRAY);
+        qtyWrap.add(qtySpinner);
+
+        row.add(info, BorderLayout.WEST);
+        row.add(qtyWrap, BorderLayout.EAST);
+        return row;
+    }
+
+    private void updateOrderTotal() {
+        if (orderTotalLabel == null) return;
+        int total = 0;
+        for (Map.Entry<MenuItem, JSpinner> entry : orderSpinners.entrySet()) {
+            int qty = (Integer) entry.getValue().getValue();
+            total += entry.getKey().price * qty;
+        }
+        orderTotalLabel.setText(formatYen(total));
+    }
+
+    private void handleOrderSubmit() {
+        List<String> lines = new ArrayList<>();
+        int total = 0;
+        int nextOrderId = db.nextOrderId();
+
+        for (Map.Entry<MenuItem, JSpinner> entry : orderSpinners.entrySet()) {
+            int qty = (Integer) entry.getValue().getValue();
+            if (qty > 0) {
+                MenuItem item = entry.getKey();
+                lines.add(item.name + " × " + qty + " = " + formatYen(item.price * qty));
+                total += item.price * qty;
+                
+                // データベースへ注文履歴を追加
+                db.addOrderHistory(new OrderHistory(nextOrderId, item.name, item.price, qty));
+            }
+        }
+        if (lines.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "商品を1つ以上選択してください。", "注文エラー", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("ご注文ありがとうございます！\n\n");
+        for (String l : lines) sb.append(l).append("\n");
+        sb.append("\n合計金額: ").append(formatYen(total));
+        JOptionPane.showMessageDialog(this, sb.toString(), "注文確定", JOptionPane.INFORMATION_MESSAGE);
+
+        for (JSpinner s : orderSpinners.values()) s.setValue(0);
+        updateOrderTotal();
+        goTo(screenBeforeOrder);
+    }
+
+    // =========================================================
+    // STYLE HELPERS
+    // =========================================================
+    private JLabel labelFor(String text) {
+        JLabel l = new JLabel(text);
+        l.setFont(FONT_LABEL);
+        l.setForeground(TEXT_MUTED);
+        l.setAlignmentX(Component.LEFT_ALIGNMENT);
+        l.setBorder(new EmptyBorder(0, 2, 6, 0));
+        return l;
+    }
+
+    private JPanel fieldBlock(String labelText, JComponent field) {
+        JPanel block = new JPanel();
+        block.setLayout(new BoxLayout(block, BoxLayout.Y_AXIS));
+        block.setBackground(BG_WHITE);
+        block.setAlignmentX(Component.LEFT_ALIGNMENT);
+        block.setMaximumSize(new Dimension(Integer.MAX_VALUE, 66));
+
+        block.add(labelFor(labelText));
+        field.setAlignmentX(Component.LEFT_ALIGNMENT);
+        field.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        field.setPreferredSize(new Dimension(180, 38));
+        block.add(field);
+        return block;
+    }
+
+    private JTextField styledTextField(String placeholder) {
+        JTextField field = new JTextField();
+        field.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        field.setBackground(BG_WHITE);
+        field.setForeground(TEXT_MUTED);
+        field.setText(placeholder);
+        field.setCaretColor(ACCENT);
+        field.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(8, 12, 8, 12)));
+
+        field.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusGained(FocusEvent e) {
+                if (field.getText().equals(placeholder)) {
+                    field.setText("");
+                    field.setForeground(TEXT_DARK);
+                }
+                field.setBorder(new CompoundBorder(new LineBorder(ACCENT, 1, true), new EmptyBorder(8, 12, 8, 12)));
+            }
+            @Override
+            public void focusLost(FocusEvent e) {
+                if (field.getText().isEmpty()) {
+                    field.setText(placeholder);
+                    field.setForeground(TEXT_MUTED);
+                }
+                field.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(8, 12, 8, 12)));
+            }
+        });
+        return field;
+    }
+
+    private void stylePasswordField(JPasswordField field) {
+        field.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        field.setBackground(BG_WHITE);
+        field.setForeground(TEXT_DARK);
+        field.setCaretColor(ACCENT);
+        field.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(8, 12, 8, 12)));
+    }
+
+    private void styleSpinner(JSpinner spinner) {
+        spinner.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        spinner.getEditor().setBackground(BG_WHITE);
+        spinner.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(2, 6, 2, 6)));
+    }
+
+    private JButton accentButton(String text) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        btn.setForeground(Color.WHITE);
+        btn.setBackground(ACCENT);
+        btn.setFocusPainted(false);
+        btn.setBorder(new EmptyBorder(11, 20, 11, 20));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) { btn.setBackground(ACCENT_HOVER); }
+            @Override
+            public void mouseExited(MouseEvent e)  { btn.setBackground(ACCENT); }
+        });
+        return btn;
+    }
+
+    private JButton ghostButton(String text) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        btn.setForeground(TEXT_DARK);
+        btn.setBackground(BG_WHITE);
+        btn.setFocusPainted(false);
+        btn.setBorder(new CompoundBorder(new LineBorder(BORDER_GRAY, 1, true), new EmptyBorder(9, 16, 9, 16)));
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) { btn.setBackground(PANEL_GRAY); }
+            @Override
+            public void mouseExited(MouseEvent e)  { btn.setBackground(BG_WHITE); }
+        });
+        return btn;
+    }
+
+    private String textOrEmpty(JTextField field, String placeholder) {
+        String t = field.getText();
+        return t.equals(placeholder) ? "" : t;
+    }
+
+    private void markValid(JTextField field, String placeholder, boolean valid) {
+        Color c = valid ? BORDER_GRAY : ACCENT;
+        field.setBorder(new CompoundBorder(new LineBorder(c, 1, true), new EmptyBorder(8, 12, 8, 12)));
+    }
+
+    private static String formatYen(int amount) {
+        NumberFormat nf = NumberFormat.getNumberInstance(Locale.JAPAN);
+        return nf.format(amount) + "円";
+    }
+
+    private static String escape(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    // =========================================================
+    // MAIN
+    // =========================================================
+    public static void main(String[] args) {
+        try {
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception ignored) { }
+        SwingUtilities.invokeLater(KaraokeBookingSystem::new);
+    }
+
+    // =========================================================
+    // MODEL CLASSES
+    // =========================================================
+    static class Room {
+        final int id;
+        final String name;
+        final String capacity;
+        final int pricePerPersonPerHour; // 1時間1人あたり料金に変更
+
+        Room(int id, String name, String capacity, int pricePerPersonPerHour) {
+            this.id = id;
+            this.name = name;
+            this.capacity = capacity;
+            this.pricePerPersonPerHour = pricePerPersonPerHour;
+        }
+    }
+
+    static class MenuItem {
+        final int id;
+        final String name;
+        final int price;
+
+        MenuItem(int id, String name, int price) {
+            this.id = id;
+            this.name = name;
+            this.price = price;
+        }
+    }
+
+    // 新規: 注文履歴保存用モデル
+    static class OrderHistory {
+        final int orderId;
+        final String itemName;
+        final int price;
+        final int quantity;
+
+        OrderHistory(int orderId, String itemName, int price, int quantity) {
+            this.orderId = orderId;
+            this.itemName = itemName;
+            this.price = price;
+            this.quantity = quantity;
+        }
+    }
+
+    static class Booking {
+        final int id;
+        final Room room;
+        final String customerName;
+        final String phone;
+        final String date;
+        final String time;
+        final int durationHours;
+        final int guests;
+        final int totalPrice;
+        String status = "CONFIRMED";
+
+        Booking(int id, Room room, String customerName, String phone, String date, String time,
+                int durationHours, int guests, int totalPrice) {
+            this.id = id;
+            this.room = room;
+            this.customerName = customerName;
+            this.phone = phone;
+            this.date = date;
+            this.time = time;
+            this.durationHours = durationHours;
+            this.guests = guests;
+            this.totalPrice = totalPrice;
+        }
+    }
+
+    static class Database {
+        private final List<Room> rooms = new ArrayList<>();
+        private final List<Booking> bookings = new ArrayList<>();
+        private final List<MenuItem> menuItems = new ArrayList<>();
+        private final List<OrderHistory> orderHistories = new ArrayList<>(); // 注文履歴用
+        private int bookingCounter = 1000;
+        private int orderCounter = 5000;
+
+        Database() {
+            // 日本のカラオケに合わせ、1人1時間あたりの料金目安に調整
+            rooms.add(new Room(1, "スモールルーム", "2〜4名", 400));
+            rooms.add(new Room(2, "ミディアムルーム", "5〜8名", 500));
+            rooms.add(new Room(3, "VIPパーティールーム", "9〜15名", 700));
+
+            menuItems.add(new MenuItem(1, "生ビール", 600));
+            menuItems.add(new MenuItem(2, "ハイボール", 550));
+            menuItems.add(new MenuItem(3, "ウーロン茶", 350));
+            menuItems.add(new MenuItem(4, "から揚げ盛り合わせ", 780));
+            menuItems.add(new MenuItem(5, "ポテトフライ", 500));
+            menuItems.add(new MenuItem(6, "ミックスナッツ", 400));
+            menuItems.add(new MenuItem(7, "ミックスピザ", 900));
+        }
+
+        List<Room> getRooms() { return rooms; }
+        List<MenuItem> getMenuItems() { return menuItems; }
+        List<OrderHistory> getOrderHistories() { return orderHistories; } // 取得用
+
+        List<Booking> getBookings() {
+            List<Booking> active = new ArrayList<>();
+            for (Booking b : bookings) {
+                if (!b.status.equals("CANCELLED")) active.add(b);
+            }
+            return active;
+        }
+
+        void addBooking(Booking b) { bookings.add(b); }
+        int nextBookingId() { return ++bookingCounter; }
+        
+        void addOrderHistory(OrderHistory oh) { orderHistories.add(oh); } // 追加用
+        int nextOrderId() { return ++orderCounter; }
+
+        void cancelBooking(int id) {
+            for (Booking b : bookings) {
+                if (b.id == id) { b.status = "CANCELLED"; break; }
+            }
+        }
+    }
+}
