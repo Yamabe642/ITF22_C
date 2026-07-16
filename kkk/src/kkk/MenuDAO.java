@@ -23,13 +23,14 @@ public class MenuDAO {
 
             while (rs.next()) {
 
-                ttt.MenuItem item = new ttt.MenuItem(
-                    rs.getInt("food_drink_id"),
-                    rs.getString("item_name"),
-                    rs.getInt("price"),
-                    rs.getString("category"),
-                    rs.getString("image_path")
-                );
+            	ttt.MenuItem item = new ttt.MenuItem(
+            		    rs.getInt("food_drink_id"),
+            		    rs.getString("item_name"),
+            		    rs.getInt("price"),
+            		    rs.getString("category"),
+            		    rs.getString("image_path"),
+            		    rs.getInt("stock")
+            		);
 
                 menuItems.add(item);
             }

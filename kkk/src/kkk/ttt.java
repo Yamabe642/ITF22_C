@@ -2038,20 +2038,28 @@ public class ttt extends JFrame {
             return capacity;
         }
     }
-        
     static class MenuItem {
         final int id;
         final String name;
         final int price;
         final String category;
         final String imagePath;
+        final int stock;   // 追加
 
-        MenuItem(int id, String name, int price, String category, String imagePath) {
+        MenuItem(
+            int id,
+            String name,
+            int price,
+            String category,
+            String imagePath,
+            int stock
+        ) {
             this.id = id;
             this.name = name;
             this.price = price;
             this.category = category;
             this.imagePath = imagePath;
+            this.stock = stock;
         }
     }
 

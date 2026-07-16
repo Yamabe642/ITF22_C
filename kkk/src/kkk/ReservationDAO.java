@@ -12,26 +12,28 @@ public class ReservationDAO {
 		    String time,
 		    int usageTime,
 		    int people,
+		    boolean freeTime,
+		    int roomCost,
+		    int guestFee,
 		    int totalPrice
 		) {
 
 		String sql =
 				"INSERT INTO reservations " +
-				"(room_name, customer_name, reservation_date, reservation_time, usage_time, number_of_people, total_price) " +
-				"VALUES (?, ?, ?, ?, ?, ?, ?)";
+				"(room_name, customer_name, reservation_date, reservation_time, usage_time, number_of_people, free_time, room_cost, guest_fee, total_price) " +
+				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try {
 
             Connection conn = DBConnection.getConnection();
 
             PreparedStatement ps = conn.prepareStatement(sql);
 
-            ps.setString(1, roomName);
-            ps.setString(2, customerName);
-            ps.setString(3, date);
-            ps.setString(4, time);
             ps.setInt(5, usageTime);
             ps.setInt(6, people);
-            ps.setInt(7, totalPrice);
+            ps.setBoolean(7, freeTime);
+            ps.setInt(8, roomCost);
+            ps.setInt(9, guestFee);
+            ps.setInt(10, totalPrice);
             
             int result = ps.executeUpdate();
 

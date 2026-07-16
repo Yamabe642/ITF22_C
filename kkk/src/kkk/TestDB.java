@@ -34,6 +34,9 @@ public class TestDB {
         	    "18:00:00",
         	    2,
         	    3,
+        	    false,
+        	    2000,
+        	    1000,
         	    3000
         	);
 

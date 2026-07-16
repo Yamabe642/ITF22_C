@@ -61,6 +61,29 @@ public class RoomDAO {
         return rooms;
     }
 
+    public void restoreStock(int roomId) {
+
+        String sql =
+            "UPDATE room SET stock = stock + 1 WHERE room_id = ?";
+
+        try {
+
+            Connection conn = DBConnection.getConnection();
+
+            PreparedStatement ps =
+                conn.prepareStatement(sql);
+
+            ps.setInt(1, roomId);
+
+            ps.executeUpdate();
+
+            conn.close();
+
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
     public boolean checkStock(int roomId) {
 
         String sql =
