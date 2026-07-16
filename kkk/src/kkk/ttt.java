@@ -844,12 +844,54 @@ public class ttt extends JFrame {
             goTo("MYBOOKINGS");
             return;
         }
+        
+        RoomDAO roomDAO = new RoomDAO();
+
+        boolean available =
+            roomDAO.checkStock(selectedRoom.id);
+
+
+        if(!available){
+
+            JOptionPane.showMessageDialog(
+                this,
+                "申し訳ありません。\n選択された部屋は現在空きがありません。",
+                "予約エラー",
+                JOptionPane.WARNING_MESSAGE
+            );
+
+            return;
+        }
 
         Booking booking = new Booking(
                 db.nextBookingId(), selectedRoom, name, phone, date, time, hours, guests,
                 pb.freeTime, pb.roomCost, pb.guestFee, pb.total
         );
         db.addBooking(booking);
+        ReservationDAO dao = new ReservationDAO();
+        
+        boolean result = dao.insert(
+        	    selectedRoom.name,
+        	    name,
+        	    date,
+        	    time,
+        	    hours,
+        	    guests,
+        	    pb.total
+        	);
+
+
+        if(result){
+
+            roomDAO.updateStock(selectedRoom.id);
+
+            JOptionPane.showMessageDialog(
+                this,
+                "予約完了しました"
+            );
+        }
+
+        System.out.println("予約DB登録：" + result);
         lastBooking = booking;
 
         bookingStatusLabel.setText(" ");
@@ -1498,10 +1540,27 @@ public class ttt extends JFrame {
         List<OrderLine> orderLines = new ArrayList<>();
         int total = 0;
         for (Map.Entry<MenuItem, JSpinner> entry : orderSpinners.entrySet()) {
+
             int qty = (Integer) entry.getValue().getValue();
+
             if (qty > 0) {
-                lines.add(entry.getKey().name + " × " + qty + " = " + formatYen(entry.getKey().price * qty));
+
+                // 在庫チェック
+                if (qty > entry.getKey().stock) {
+                    JOptionPane.showMessageDialog(
+                        this,
+                        entry.getKey().name + " は在庫不足です。\n現在の在庫: " + entry.getKey().stock,
+                        "注文エラー",
+                        JOptionPane.WARNING_MESSAGE
+                    );
+                    return;
+                }
+
+                lines.add(entry.getKey().name + " × " + qty 
+                        + " = " + formatYen(entry.getKey().price * qty));
+
                 orderLines.add(new OrderLine(entry.getKey(), qty));
+
                 total += entry.getKey().price * qty;
             }
         }
@@ -1513,6 +1572,15 @@ public class ttt extends JFrame {
         String placedAt = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
         Order order = new Order(db.nextOrderId(), orderLines, total, placedAt);
         db.addOrder(order);
+        
+        MenuDAO menuDAO = new MenuDAO();
+
+        for (OrderLine line : orderLines) {
+            menuDAO.updateStock(
+                line.item.id,
+                line.qty
+            );
+        }
 
         StringBuilder sb = new StringBuilder();
         sb.append("ご注文ありがとうございます！（注文番号 #").append(order.id).append("）\n\n");

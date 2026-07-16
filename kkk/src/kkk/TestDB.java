@@ -25,17 +25,19 @@ public class TestDB {
             );
         }
 
-
         ReservationDAO reservationDao = new ReservationDAO();
 
         boolean result = reservationDao.insert(
-            "スモールルーム",
-            "2026-07-16",
-            "18:00:00",
-            2,
-            3,
-            3000
-        );
+        	    "スモールルーム",
+        	    "ヤマダ",
+        	    "2026-07-16",
+        	    "18:00:00",
+        	    2,
+        	    3,
+        	    3000
+        	);
+
+        System.out.println("予約登録：" + result);
 
         System.out.println("予約登録：" + result);
     }
