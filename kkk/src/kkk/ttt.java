@@ -193,6 +193,7 @@ public class ttt extends JFrame {
         String key = path + "@" + w + "x" + h;
         if (ICON_CACHE.containsKey(key)) return ICON_CACHE.get(key);
 
+        System.out.println("読み込み画像パス：" + path);
         BufferedImage src = null;
         try {
             // 1) クラスパス（binフォルダにコピーされる場合）
@@ -1315,13 +1316,28 @@ public class ttt extends JFrame {
             groupedItems.computeIfAbsent(item.category, k -> new ArrayList<>()).add(item);
         }
 
-        content.add(buildMenuCategorySection("DRINK STATION", "まずは乾杯。ネオンバーのようにドリンクを並べて確認できます", groupedItems.get("ドリンク")));
-        content.add(Box.createVerticalStrut(18));
-        content.add(buildMenuCategorySection("FOOD STAGE", "人気の軽食・ごはんものを、ラジオ番組の選曲一覧のように比較できます", groupedItems.get("フード")));
-        content.add(Box.createVerticalStrut(18));
-        content.add(buildMenuCategorySection("SWEET ENCORE", "食後やシメに選びやすいスイーツを、アンコール枠として配置しています", groupedItems.get("デザート")));
-        content.add(Box.createVerticalGlue());
+        content.add(buildMenuCategorySection(
+        	    "DRINK STATION",
+        	    "まずは乾杯。ネオンバーのようにドリンクを並べて確認できます",
+        	    groupedItems.get("Drink")
+        	));
 
+        	content.add(Box.createVerticalStrut(18));
+
+        	content.add(buildMenuCategorySection(
+        	    "FOOD STAGE",
+        	    "人気の軽食・ごはんものを、ラジオ番組の選曲一覧のように比較できます",
+        	    groupedItems.get("Food")
+        	));
+
+        	content.add(Box.createVerticalStrut(18));
+
+        	content.add(buildMenuCategorySection(
+        	    "SWEET ENCORE",
+        	    "食後やシメに選びやすいスイーツを、アンコール枠として配置しています",
+        	    groupedItems.get("Dessert")
+        	));
+        	
         JScrollPane scroll = new JScrollPane(content, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         scroll.setBorder(null);
         scroll.getViewport().setBackground(BG_WHITE);
@@ -1763,7 +1779,7 @@ public class ttt extends JFrame {
             monthLabel.setText(current[0].getYear() + "年 " + current[0].getMonthValue() + "月");
             daysGrid.removeAll();
 
-            String[] weekLabels = {"日", "月", "火", "水", "木", "金", "土"};
+            String[] weekLabels = {"月", "月", "火", "水", "木", "金", "金"};
             for (String w : weekLabels) {
                 JLabel wl = new JLabel(w, SwingConstants.CENTER);
                 wl.setFont(FONT_LABEL);
@@ -1905,17 +1921,26 @@ public class ttt extends JFrame {
     // =========================================================
     // MODEL CLASSES
     // =========================================================
-    static class Room {
+
+    public static class Room {
+
         final int id;
         final String name;
         final String capacity;
         final int pricePerHour;
-        final String imagePath;   // ★追加
-        final int minGuests;      // ★追加: 人数制限（下限）
-        final int maxGuests;      // ★追加: 人数制限（上限）
+        final String imagePath;
+        final int minGuests;
+        final int maxGuests;
 
-        Room(int id, String name, String capacity, int pricePerHour, String imagePath,
-             int minGuests, int maxGuests) {
+        public Room(
+            int id,
+            String name,
+            String capacity,
+            int pricePerHour,
+            String imagePath,
+            int minGuests,
+            int maxGuests
+        ) {
             this.id = id;
             this.name = name;
             this.capacity = capacity;
@@ -1924,8 +1949,28 @@ public class ttt extends JFrame {
             this.minGuests = minGuests;
             this.maxGuests = maxGuests;
         }
-    }
 
+        public String getName() {
+            return name;
+        }
+
+        public int getPricePerHour() {
+            return pricePerHour;
+        }
+
+        public int getMinGuests() {
+            return minGuests;
+        }
+
+        public int getMaxGuests() {
+            return maxGuests;
+        }
+
+        public String getCapacity() {
+            return capacity;
+        }
+    }
+        
     static class MenuItem {
         final int id;
         final String name;
@@ -2008,30 +2053,22 @@ public class ttt extends JFrame {
         private int orderCounter = 5000;
 
         Database() {
-            // ★画像パスを明示的に指定（名前からの自動導出はしない）
-            // ★変更: 室料はスモール・ミディアムを無料に、VIPパーティールームのみ2000円/時に変更
-            //          （人数×時間の料金制を主体にするため）
-            rooms.add(new Room(1, "ネオンブース",             "2〜4名",  0,    "images/ルーム画像/スモールルーム.png",   2, 4));
-            rooms.add(new Room(2, "シティポップラウンジ",     "5〜8名",  0,    "images/ルーム画像/ミディアムルーム.png", 5, 8));
-            rooms.add(new Room(3, "ミッドナイトVIPスタジオ", "9〜15名", 2000, "images/ルーム画像/パーティールーム.png", 9, 15));
 
-            menuItems.add(new MenuItem(1,  "生ビール",       400, "ドリンク", "images/メニュー画像/生ビール.png"));
-            menuItems.add(new MenuItem(2,  "ハイボール",     400, "ドリンク", "images/メニュー画像/ハイボール.png"));
-            menuItems.add(new MenuItem(3,  "フライドポテト", 450, "フード", "images/メニュー画像/フライドポテト.png"));
-            menuItems.add(new MenuItem(4,  "唐揚げ",         580, "フード", "images/メニュー画像/唐揚げ.png"));
-            menuItems.add(new MenuItem(5,  "ピザ",           980, "フード", "images/メニュー画像/ピザ.png"));
-            menuItems.add(new MenuItem(6,  "チャーハン",     750, "フード", "images/メニュー画像/チャーハン.png"));
-            menuItems.add(new MenuItem(7,  "オムライス",     850, "フード", "images/メニュー画像/オムライス.png"));
-            menuItems.add(new MenuItem(8,  "カレーライス",   780, "フード", "images/メニュー画像/カレーライス.png"));
-            menuItems.add(new MenuItem(9,  "グリンーサラダ", 500, "フード", "images/メニュー画像/グリンーサラダ.png"));
-            menuItems.add(new MenuItem(10, "たこ焼き",       550, "フード", "images/メニュー画像/たこ焼き.png"));
-            menuItems.add(new MenuItem(11, "焼きそば",       780, "フード", "images/メニュー画像/焼きそば.png"));
-            menuItems.add(new MenuItem(12, "ナゲット",       480, "フード", "images/メニュー画像/ナゲット.png"));
-            menuItems.add(new MenuItem(13, "チョコパフェ",   650, "デザート", "images/メニュー画像/チョコパフェ.png"));
-            menuItems.add(new MenuItem(14, "イチゴパフェ",   650, "デザート", "images/メニュー画像/イチゴパフェ.png"));
-            menuItems.add(new MenuItem(15, "バニラアイス",   350, "デザート", "images/メニュー画像/バニラアイス.png"));
-            menuItems.add(new MenuItem(16, "チョコアイス",   350, "デザート", "images/メニュー画像/チョコアイス.png"));
-            menuItems.add(new MenuItem(17, "いちごアイス",   350, "デザート", "images/メニュー画像/イチゴアイス.png"));
+            // DBから部屋情報取得
+            RoomDAO roomDAO = new RoomDAO();
+
+            ArrayList<Room> dbRooms = roomDAO.findAll();
+
+            rooms.addAll(dbRooms);
+
+
+            // DBからメニュー情報取得
+            MenuDAO menuDAO = new MenuDAO();
+
+            ArrayList<MenuItem> dbMenuItems = menuDAO.findAll();
+
+            menuItems.addAll(dbMenuItems);
+
         }
 
         List<Room> getRooms() { return rooms; }
