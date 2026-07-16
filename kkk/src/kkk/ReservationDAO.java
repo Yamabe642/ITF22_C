@@ -20,7 +20,8 @@ public class ReservationDAO {
 
 		String sql =
 				"INSERT INTO reservations " +
-				"(room_name, customer_name, reservation_date, reservation_time, usage_time, number_of_people, free_time, room_cost, guest_fee, total_price) " +
+				"(room_name, customer_name, reservation_date, reservation_time, " +
+				"usage_time, number_of_people, free_time, room_cost, guest_fee, total_price) " +
 				"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try {
 
@@ -28,6 +29,10 @@ public class ReservationDAO {
 
             PreparedStatement ps = conn.prepareStatement(sql);
 
+            ps.setString(1, roomName);
+            ps.setString(2, customerName);
+            ps.setString(3, date);
+            ps.setString(4, time);
             ps.setInt(5, usageTime);
             ps.setInt(6, people);
             ps.setBoolean(7, freeTime);

@@ -877,6 +877,9 @@ public class ttt extends JFrame {
         	    time,
         	    hours,
         	    guests,
+        	    pb.freeTime,
+        	    pb.roomCost,
+        	    pb.guestFee,
         	    pb.total
         	);
 
@@ -1546,7 +1549,8 @@ public class ttt extends JFrame {
             if (qty > 0) {
 
                 // 在庫チェック
-                if (qty > entry.getKey().stock) {
+            	if (entry.getKey().stock <= 0 ||
+            		    qty > entry.getKey().stock) {
                     JOptionPane.showMessageDialog(
                         this,
                         entry.getKey().name + " は在庫不足です。\n現在の在庫: " + entry.getKey().stock,
@@ -1576,10 +1580,14 @@ public class ttt extends JFrame {
         MenuDAO menuDAO = new MenuDAO();
 
         for (OrderLine line : orderLines) {
+
             menuDAO.updateStock(
                 line.item.id,
                 line.qty
             );
+
+            // 画面側の在庫も減らす
+            line.item.stock -= line.qty;
         }
 
         StringBuilder sb = new StringBuilder();
@@ -2039,12 +2047,14 @@ public class ttt extends JFrame {
         }
     }
     static class MenuItem {
+
         final int id;
         final String name;
         final int price;
         final String category;
         final String imagePath;
-        final int stock;   // 追加
+        int stock;
+
 
         MenuItem(
             int id,

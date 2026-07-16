@@ -7,74 +7,88 @@ import java.util.ArrayList;
 
 public class MenuDAO {
 
+
     public ArrayList<ttt.MenuItem> findAll() {
 
-        ArrayList<ttt.MenuItem> menuItems = new ArrayList<>();
+        ArrayList<ttt.MenuItem> items = new ArrayList<>();
 
-        String sql =
-            "SELECT food_drink_id, item_name, price, category, image_path " +
-            "FROM food_drink";
+        String sql = "SELECT * FROM food_drink";
 
-        try (
+
+        try {
+
             Connection conn = DBConnection.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql);
-            ResultSet rs = ps.executeQuery()
-        ) {
 
-            while (rs.next()) {
+            PreparedStatement ps =
+                conn.prepareStatement(sql);
 
-            	ttt.MenuItem item = new ttt.MenuItem(
-            		    rs.getInt("food_drink_id"),
-            		    rs.getString("item_name"),
-            		    rs.getInt("price"),
-            		    rs.getString("category"),
-            		    rs.getString("image_path"),
-            		    rs.getInt("stock")
-            		);
+            ResultSet rs = ps.executeQuery();
 
-                menuItems.add(item);
+
+            while(rs.next()) {
+
+                ttt.MenuItem item =
+                    new ttt.MenuItem(
+                        rs.getInt("food_drink_id"),
+                        rs.getString("item_name"),
+                        rs.getInt("price"),
+                        rs.getString("category"),
+                        rs.getString("image_path"),
+                        rs.getInt("stock")
+                    );
+
+
+                items.add(item);
             }
 
-        } catch (Exception e) {
+
+            conn.close();
+
+
+        } catch(Exception e) {
+
             e.printStackTrace();
+
         }
 
-        return menuItems;
+
+        return items;
     }
 
 
-    // 在庫更新
-    public boolean updateStock(int foodDrinkId, int qty) {
 
-        System.out.println(
-            "在庫更新 ID=" + foodDrinkId + " 数=" + qty
-        );
+    public void updateStock(int id, int qty) {
 
         String sql =
-            "UPDATE food_drink " +
-            "SET stock = stock - ? " +
-            "WHERE food_drink_id = ? " +
-            "AND stock >= ?";
+            "UPDATE food_drink "
+          + "SET stock = stock - ? "
+          + "WHERE food_drink_id = ?";
 
-        try (
-            Connection conn = DBConnection.getConnection();
-            PreparedStatement ps = conn.prepareStatement(sql)
-        ) {
+
+        try {
+
+            Connection conn =
+                DBConnection.getConnection();
+
+
+            PreparedStatement ps =
+                conn.prepareStatement(sql);
+
 
             ps.setInt(1, qty);
-            ps.setInt(2, foodDrinkId);
-            ps.setInt(3, qty);
+            ps.setInt(2, id);
 
-            int result = ps.executeUpdate();
 
-            // 更新成功ならtrue
-            return result > 0;
+            ps.executeUpdate();
 
-        } catch (Exception e) {
+
+            conn.close();
+
+
+        } catch(Exception e) {
+
             e.printStackTrace();
+
         }
-
-        return false;
     }
-
 }
